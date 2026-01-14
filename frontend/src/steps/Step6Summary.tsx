@@ -2,7 +2,6 @@ import type { FileRef, ModConfig } from '../types'
 
 type Props = {
   config: ModConfig
-  generateResult: unknown
   loading: boolean
   onGenerate: () => void
 }
@@ -30,7 +29,7 @@ function FileSection({ title, items }: { title: string; items: FileRef[] }) {
   )
 }
 
-export function Step6Summary({ config, generateResult, loading, onGenerate }: Props) {
+export function Step6Summary({ config, loading, onGenerate }: Props) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <h2 className="text-xl font-semibold mb-4">Krok 6: Podsumowanie</h2>

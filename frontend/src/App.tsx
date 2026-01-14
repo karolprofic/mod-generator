@@ -40,7 +40,6 @@ export default function App() {
   const [assetsPreview, setAssetsPreview] = useState<FileRef | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [generateResult, setGenerateResult] = useState<unknown>(null)
 
   // Ensure selected files still exist after reload
   useEffect(() => {
@@ -153,11 +152,10 @@ export default function App() {
 
   async function onGenerate() {
     setError(null)
-    setGenerateResult(null)
     try {
       setLoading(true)
       const result = await apiPost('/api/generate', config)
-      setGenerateResult(result)
+      void result
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -217,12 +215,7 @@ export default function App() {
         ) : null}
 
         {step === 6 ? (
-          <Step6Summary
-            config={config}
-            generateResult={generateResult}
-            loading={loading}
-            onGenerate={onGenerate}
-          />
+          <Step6Summary config={config} loading={loading} onGenerate={onGenerate} />
         ) : null}
 
         <div className="flex justify-end gap-3 mt-8">
