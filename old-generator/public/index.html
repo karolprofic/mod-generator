@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<title>Mod Generator</title>
+	<link href="style.css" rel="stylesheet">
+</head>
+
+<body>
+	<div class="container">
+		<!-- LEFT: Game selector -->
+		<div class="column" id="left">
+			<fieldset>
+				<legend>Select a game:</legend>
+				<div id="folder-list">
+					<!-- radios injected here -->
+				</div>
+			</fieldset>
+		</div>
+
+		<!-- CENTER: Imports list -->
+		<div class="column" id="center">
+			<fieldset>
+				<legend>Select files:</legend>
+				<div id="import-list">
+					<!-- checkboxes injected here -->
+				</div>
+			</fieldset>
+		</div>
+
+		<!-- RIGHT: Mod config -->
+		<div class="column" id="right">
+			<fieldset>
+				<legend>Generate mod:</legend>
+				<label for="modName">Mod name:</label>
+				<input type="text" id="modName" name="modName" placeholder="777 Summer Hit"><br><br>
+
+				<label for="modFolder">Mod folder:</label>
+				<input type="text" id="modFolder" name="modFolder" placeholder="_777_summer_hit"><br><br>
+
+				<label for="modId">Mod id:</label>
+				<input type="text" id="modId" name="modId" placeholder="777-summer-hit"><br><br>
+
+				<label for="modPrefix">Mod prefix:</label>
+				<input type="text" id="modPrefix" name="modPrefix" placeholder="777sh"><br><br>
+
+				<label for="modEnv">Mod environment:</label>
+				<select id="modEnv" name="modEnv">
+					<option value="web">Web</option>
+					<option value="mobile">Mobile</option>
+					<option value="es_premium">ES Premium</option>
+					<option value="empire">Empire</option>
+					<option value="prince">Prince</option>
+					<option value="vip">VIP</option>
+					<option value="es3">ES3</option>
+				</select><br><br>
+
+				<input type="checkbox" id="copyFiles" name="copyFiles">
+				<label for="copyFiles">Copy files with new prefix</label><br><br>
+
+				<input type="checkbox" id="addToGamesList" name="addToGamesList">
+				<label for="addToGamesList">Add mod to games list</label><br><br>
+
+				<button type="submit">Generate</button>
+			</fieldset>
+		</div>
+
+
+	</div>
+
+	<script>
+		// Load available game folders and render them as radio buttons
+		async function loadFolders() {
+			const res = await fetch("http://localhost:3000/games");
+			const { games } = await res.json();
+			const container = document.getElementById("folder-list");
+			container.innerHTML = "";
+
+			games.forEach((name, index) => {
+				const id = `game_${index}`;
+				const wrapper = document.createElement("div");
+
+				const radio = Object.assign(document.createElement("input"), {
+					type: "radio",
+					name: "game",
+					id,
+					value: name,
+					checked: index === 0
+				});
+				radio.addEventListener("change", () => loadImports(name));
+
+				const label = Object.assign(document.createElement("label"), {
+					htmlFor: id,
+					textContent: name
+				});
+
+				wrapper.append(radio, label);
+				container.appendChild(wrapper);
+			});
+
+			if (games.length) {
+				loadImports(games[0])
+			};
+		}
+
+		// Fetch importable files for a selected game
+		async function loadImports(gameName) {
+			try {
+				const response = await fetch("http://localhost:3000/imports", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ gameName })
+				});
+				const { files } = await response.json();
+				renderImports(files);
+			} catch (error) {
+				console.error("Unable to load imports:", error);
+			}
+		}
+
+		// Render importable files as grouped checkboxes
+		function renderImports(files) {
+			const container = document.getElementById("import-list");
+			container.innerHTML = "";
+
+			const groups = {};
+
+			for (const relPath in files) {
+				const [folder, ...rest] = relPath.split(/[/\\]/);
+				if (!groups[folder]) groups[folder] = [];
+				groups[folder].push({ file: rest.join("/"), imports: files[relPath] });
+			}
+
+			for (const folder in groups) {
+				const folderFieldset = document.createElement("fieldset");
+				folderFieldset.innerHTML = `<legend>${folder}</legend>`;
+
+				groups[folder].forEach(({ file, imports }) => {
+					const fileFieldset = document.createElement("fieldset");
+					fileFieldset.innerHTML = `<legend>${file}</legend>`;
+
+					imports.forEach((imp, idx) => {
+						const safeId = `chk_${folder.replace(/\W+/g, "_")}_${file.replace(/\W+/g, "_")}_${idx}`;
+
+						const checkbox = Object.assign(document.createElement("input"), {
+							type: "checkbox",
+							id: safeId,
+							name: "import",
+							value: imp
+						});
+
+						const label = Object.assign(document.createElement("label"), {
+							htmlFor: safeId,
+							textContent: imp
+						});
+
+						const wrapper = document.createElement("div");
+						wrapper.className = "import-item";
+						wrapper.append(checkbox, label);
+						fileFieldset.appendChild(wrapper);
+					});
+
+					folderFieldset.appendChild(fileFieldset);
+				});
+
+				container.appendChild(folderFieldset);
+			}
+		}
+
+		// Collect form data and send mod generation request
+		async function generateMod(event) {
+			event.preventDefault();
+
+			const getValue = (id) => document.getElementById(id).value.trim();
+			const gameFolder = document.querySelector("input[name='game']:checked")?.value;
+			const modGameName = getValue("modName");
+			const modFolder = getValue("modFolder");
+			const modGameId = getValue("modId");
+			const modPrefix = getValue("modPrefix");
+			const modEnv = getValue("modEnv");
+			const checkedFiles = Array.from(document.querySelectorAll("input[name='import']:checked")).map(cb => cb.value);
+			const copyFiles = document.getElementById("copyFiles").checked;
+			const addToEnv = document.getElementById("addToGamesList").checked;
+
+			if (!gameFolder || !modGameName || !modFolder || !modGameId || !modPrefix || !modEnv) {
+				alert("Please fill in all required fields.");
+				return;
+			}
+
+			const payload = {
+				gameFolder,
+				modGameName,
+				modFolder,
+				modGameId,
+				modPrefix,
+				modEnv,
+				checkedFiles,
+				copyFiles,
+				addToEnv
+			};
+
+			try {
+				const response = await fetch("http://localhost:3000/generate", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(payload)
+				});
+				const result = await response.json();
+				alert("Mod generated successfully!");
+				console.log(result);
+			} catch (error) {
+				console.error("Error generating mod:", error);
+				alert("Failed to generate mod. Please try again.");
+			}
+		}
+
+		// Initialize on page load
+		window.addEventListener("DOMContentLoaded", loadFolders);
+		document.querySelector("button[type='submit']").addEventListener("click", generateMod);
+	</script>
+
+</body>
+
+</html>

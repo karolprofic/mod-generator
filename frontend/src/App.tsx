@@ -78,8 +78,11 @@ export default function App() {
     setError(null)
     if (step !== 2) return
 
+    const mediaPath = config.mediaPath
+    if (!mediaPath) return
+
     setLoading(true)
-    apiGet<string[]>('/api/games')
+    apiGet<string[]>(`/api/games/${encodeURIComponent(mediaPath)}`)
       .then(setGames)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false))
